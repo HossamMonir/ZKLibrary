@@ -1,7 +1,8 @@
 # ZKLibrary
-ZKLibrary is PHP Library for ZK Time & Attendance Devices. This library is design to reading and writing data to attendance device (fingerprint, face recognition or RFID) using UDP protocol. This library is useful to comunicate between web server and attendance device directly without any addition program. This library is implemented in the form of class. So that you can create an object and use it functions.
+ZKLibrary is PHP Library for ZK Time & Attendance Devices. This library is design to reading and writing data to attendance device (fingerprint, face recognition or RFID) using UDP and TCP protocol. This library is useful to comunicate between web server and attendance device directly without any addition program. This library is implemented in the form of class. So that you can create an object and use it functions.
 
 Web server must be connected to the attendance device via Local Area Network (LAN). The UDP port that is used in this communication is 4370. You can not change this port without changing firmware of the attendance device. So, you just use it.
+For model K14 TCP port 4370 is used.
 
 The format of the data are: binary, string, and number. The length of the parameter and return value must be vary.
 
@@ -11,7 +12,7 @@ The format of the data are: binary, string, and number. The length of the parame
 ```php
 <?php
 include "zklibrary.php";
-$zk = new ZKLibrary('192.168.1.102', 4370);
+$zk = new ZKLibrary('192.168.1.102', 4370, 'UDP');
 $zk->connect();
 $zk->disableDevice();
 $zk->testVoice();
@@ -40,7 +41,7 @@ Unsigned Long timeout_usec;
 ```
 ## Functions
 ```php
-__construct([$ip[, $port]])
+__construct([$ip[, $port[, $protocol]]])
 ```
 Object constructor.
 ### Parameters
@@ -50,7 +51,11 @@ IP address of device.
 
 $port 
 
-UDP port of device.
+UDP or TCP port of device.
+
+$protocol 
+
+'UDP' or 'TCP'.
 
 ```php
 __destruct()
@@ -58,7 +63,7 @@ __destruct()
 Object destructor.
 
 ```php
-connect([$ip[, $port]])
+connect([$ip[, $port[, $protocol]]])
 ```
 Function to make a connection to the device. If IP address and port is not defined yet, this function must take it. Else, this function return FALSE and does not make any connection.
 ### Parameters
@@ -66,9 +71,13 @@ $ip
 
 IP address of the device.
 
-$port
+$port 
 
-UDP port of the device.
+UDP or TCP port of device.
+
+$protocol 
+
+'UDP' or 'TCP'.
 
 ```php
 disconnect()
