@@ -169,7 +169,7 @@ class ZKLibrary {
 		$this->send($buf);
 		try
 		{
-			$this->received_data = $this->recv();
+			$this->received_data = $this->recv();exit;
 			return $this->checkValid($this->received_data);
 		}
 		catch(ErrorException $e)
@@ -688,42 +688,133 @@ class ZKLibrary {
 	}
 	public function getUser()
 	{
-		$command = CMD_USERTEMP_RRQ;
-		$command_string = chr(5);
-		$chksum = 0;
-		$session_id = $this->session_id;
-		$u = unpack('H2h1/H2h2/H2h3/H2h4/H2h5/H2h6/H2h7/H2h8', substr( $this->received_data, $this->start_data, 8) );
-		$reply_id = hexdec( $u['h8'].$u['h7'] );
-		$buf = $this->createHeader($command, $chksum, $session_id, $reply_id, $command_string);
-		$this->send($buf);
+		if ($this->protocol == 'TCP') {
+			$command = 1503;
+	        $command_string = pack('CCLLC', 1, 9, 1280, 0, 0);
+	        $chksum = 0;
+	        $session_id = $this->session_id;
+	        $u = unpack('H2h1/H2h2/H2h3/H2h4/H2h5/H2h6/H2h7/H2h8', substr($this->received_data, $this->start_data, 8));
+	        $ucs = unpack('H' . (strlen($command_string) * 2), substr($command_string, 0));
+	        $udat = unpack('H' . (strlen($this->received_data) * 2), substr($this->received_data, 0));
+	        $reply_id = hexdec($u['h8'] . $u['h7']);
+	        $buf = $this->createHeader($command, $chksum, $session_id, $reply_id, $command_string);
+	        $this->send($buf);
+	        $this->received_data = $this->recv();
+	        $udat = unpack('H' . (strlen($this->received_data) * 2), substr($this->received_data, 0));
+	        $u = unpack('H2h1/H2h2/H2h3/H2h4/H2h5/H2h6/H2h7/H2h8', substr($this->received_data, $this->start_data, 8));
+	        $reply_id = hexdec($u['h8'] . $u['h7']);
+	        $comando = hexdec($u['h2'] . $u['h1']);
+
+	        if ($comando == CMD_ACK_OK) {
+	            $u = unpack('H2h1/H2h2', substr($this->received_data, 17, 2));
+	            $size = hexdec($u['h2'] . $u['h1']);
+	        } else {
+	            $u = unpack('H2h1/H2h2', substr($this->received_data, 16, 2));
+	            $size = hexdec($u['h2'] . $u['h1']);
+	        }
+
+	        if ($size > 1024) {
+	            $buf = $this->createHeader(1504, $chksum, $session_id, $reply_id, pack('LL', 0, $size));
+	            $this->send($buf);
+	        }
+		}
+		else {
+			$command = CMD_USERTEMP_RRQ;
+			$command_string = chr(5);
+			$chksum = 0;
+			$session_id = $this->session_id;
+			$u = unpack('H2h1/H2h2/H2h3/H2h4/H2h5/H2h6/H2h7/H2h8', substr( $this->received_data, $this->start_data, 8) );
+			$reply_id = hexdec( $u['h8'].$u['h7'] );
+			$buf = $this->createHeader($command, $chksum, $session_id, $reply_id, $command_string);
+			$this->send($buf);
+		}
+
 		try
 		{
-			$this->received_data = $this->recv();
-			$u = unpack('H2h1/H2h2/H2h3/H2h4/H2h5/H2h6', substr( $this->received_data, $this->start_data, 8 ) );
-			$bytes = $this->getSizeUser();
-			if($bytes)
-			{
-				while($bytes > 0)
+			if ($this->protocol == 'TCP') {
+				if ($size > 1024) {
+	                $this->received_data = $this->recv();
+	                $bytes = $size;
+	                $bytes2 = 0;
+	                $tembytes = $bytes;
+
+	                if ($bytes) {
+
+	                    array_push($this->user_data, substr($this->received_data, 16));
+	                    $bytes -= strlen($this->received_data);
+
+	                    while ($bytes > 0) {
+	                        $received_data = $this->recv();
+	                        $bytes2 += strlen($received_data);
+	                        $longitud = strlen($received_data);
+	                        if ($bytes2 > 1024) {
+	                            if (substr($received_data, 0, 2) == 'PP') {
+	                                $received_data = substr($received_data, 16);
+	                                $bytes2 -= 1024;
+	                            } else {
+	                                $received_data = substr($received_data, 0, $longitud - ($bytes2 - 1024)) . substr($received_data, $longitud - ($bytes2 - 1024) + 16);
+	                                $bytes2 -= 1024;
+	                            }
+	                        }
+	                        array_push($this->user_data, substr($received_data, 0));
+	                        $bytes -= strlen($received_data);
+
+	                        if (strlen($received_data) == 0) {
+	                            $bytes = 0;
+	                        }
+	                    }
+	                    $this->session_id = hexdec($u['h6'] . $u['h5']);
+	                    $received_data = $this->recv();
+	                }
+
+	                array_push($this->user_data, substr($this->user_data, 0));
+	                if (count($this->user_data) > 0) {
+	                    $this->user_data[0] = substr($this->user_data[0], 8);
+	                    $this->user_data[1] = substr($this->user_data[1], 8);
+	                }
+	            } else {
+	                array_push($this->user_data, substr($this->received_data, 0));
+	                $u = unpack('H' . (strlen($this->received_data) * 2), substr($this->received_data, 0));
+	                $size -= strlen($this->received_data);
+	                if ($size > 0) {
+	                	$size += 12;
+	                }
+
+	                while ($size > 0) {
+	                    $received_data = $this->recv();
+	                    $u = unpack('H' . (strlen($received_data) * 2), substr($received_data, 0));
+	                    array_push($this->user_data, substr($received_data, 0));
+	                    $size -= strlen($received_data);
+
+	                    if (strlen($received_data) == 0) {
+	                        $size = 0;
+	                    }
+	                }
+
+	                $this->user_data[0] = substr($this->user_data[0], 8);
+	            }
+			}
+			else {
+				$this->received_data = $this->recv();
+				$u = unpack('H2h1/H2h2/H2h3/H2h4/H2h5/H2h6', substr( $this->received_data, $this->start_data, 8 ) );
+				$bytes = $this->getSizeUser();
+				if($bytes)
 				{
-					$received_data = $this->recv(1032);
-					array_push( $this->user_data, $received_data);
-					if ($this->protocol == 'TCP') {
-						$bytes -= strlen($received_data);
-					}
-					else {
+					while($bytes > 0)
+					{
+						$received_data = $this->recv(1032);
+						array_push( $this->user_data, $received_data);
 						$bytes -= 1024;
 					}
+					$this->session_id =  hexdec( $u['h6'].$u['h5'] );
+					$received_data = $this->recv();
 				}
-				$this->session_id =  hexdec( $u['h6'].$u['h5'] );
-				$received_data = $this->recv();
 			}
+			
 			$users = array();
 			if(count($this->user_data) > 0)
 			{
-				if ($this->protocol == 'TCP') {
-					$this->user_data[0] = substr($this->user_data[0], 8);
-				}
-				else {
+				if ($this->protocol != 'TCP') {
 					for($x=0; $x<count($this->user_data); $x++)
 					{
 						if ($x > 0)
