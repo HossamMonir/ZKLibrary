@@ -169,7 +169,7 @@ class ZKLibrary {
 		$this->send($buf);
 		try
 		{
-			$this->received_data = $this->recv();exit;
+			$this->received_data = $this->recv();
 			return $this->checkValid($this->received_data);
 		}
 		catch(ErrorException $e)
