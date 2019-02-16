@@ -61,7 +61,7 @@ class ZKLibrary {
 	public $user_data = array();
 	public $attendance_data = array();
 	public $timeout_sec = 5;
-	public $timeout_usec = 5000000;
+	public $timeout_usec = 500000;
 
 	public function __construct($ip = null, $port = null, $protocol = 'UDP')
 	{
